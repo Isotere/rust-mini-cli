@@ -1,0 +1,27 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: [ubuntu-latest, macos-latest]
+    strategy:
+      matrix:
+        BUILD_TARGET: [release]
+    steps:
+    - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+    - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+    - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+    - uses: actions/checkout@v6
+    - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+    - name: Build binaries in "${{ matrix.BUILD_TARGET }}" mode
+      run: cargo build --profile ${{ matrix.BUILD_TARGET }}
+    - name: Run tests in "${{ matrix.BUILD_TARGET }}" mode
+      run: cargo test --profile ${{ matrix.BUILD_TARGET }}
