@@ -1,1 +1,1 @@
-pub mod farenheit;
+pub mod fahrenheit;
