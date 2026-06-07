@@ -9,8 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd9777fd8234cccd34019d9e26d70c8247f9baf24c8fdc0b56c548cf943af2ed"
 
 [[package]]
-name = "rust-mini-cli"
+name = "learning"
 version = "0.1.0"
 dependencies = [
  "assert_float_eq",
 ]
+
+[[package]]
+name = "logentry"
+version = "0.1.0"

@@ -1,0 +1,10 @@
+[package]
+name = "learning"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+assert_float_eq.workspace = true
