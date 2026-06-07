@@ -4,15 +4,6 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-# Explicit lib + bin targets. Binary depends on the crate's own library.
-[lib]
-name = "logentry"
-path = "src/lib.rs"
-
-[[bin]]
-name = "logentry"
-path = "src/main.rs"
-
 [dependencies]
 
 [dev-dependencies]
