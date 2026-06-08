@@ -1,8 +1,31 @@
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LogLevel {
+    Debug,
+    Info,
+    Warning,
+    Error,
+    Fatal,
+    Unknown,
+}
+
+impl From<&str> for LogLevel {
+    fn from(val: &str) -> Self {
+        match val.trim().to_uppercase().as_str() {
+            "DEBUG" => LogLevel::Debug,
+            "INFO" => LogLevel::Info,
+            "WARN" | "WARNING" => LogLevel::Warning,
+            "ERR" | "ERROR" => LogLevel::Error,
+            "FATAL" => LogLevel::Fatal,
+            _ => LogLevel::Unknown,
+        }
+    }
+}
+
 /// Одна разобранная запись лога.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogEntry {
     timestamp: String,
-    level: String,
+    level: LogLevel,
     message: String,
 }
 
@@ -23,7 +46,7 @@ impl LogEntry {
 
         Some(Self {
             timestamp,
-            level,
+            level: LogLevel::from(level.as_str()),
             message,
         })
     }
@@ -32,8 +55,8 @@ impl LogEntry {
         &self.timestamp
     }
 
-    pub fn level(&self) -> &str {
-        &self.level
+    pub fn level(&self) -> LogLevel {
+        self.level
     }
 
     pub fn message(&self) -> &str {
@@ -49,7 +72,7 @@ mod tests {
     fn parse_valid_line() {
         let entry = LogEntry::parse("2026-06-07:INFO:started").unwrap();
         assert_eq!(entry.timestamp, "2026-06-07");
-        assert_eq!(entry.level, "INFO");
+        assert_eq!(entry.level, LogLevel::Info);
         assert_eq!(entry.message, "started");
     }
 
@@ -58,13 +81,49 @@ mod tests {
         // Двоеточия после второго остаются в message.
         let entry = LogEntry::parse("ts:WARN:user:42 logged in").unwrap();
         assert_eq!(entry.message, "user:42 logged in");
+        // WARN — алиас Warning, уровень должен распознаться (не Unknown).
+        assert_eq!(entry.level, LogLevel::Warning);
+    }
+
+    #[test]
+    fn log_level_canonical_names() {
+        assert_eq!(LogLevel::from("DEBUG"), LogLevel::Debug);
+        assert_eq!(LogLevel::from("INFO"), LogLevel::Info);
+        assert_eq!(LogLevel::from("WARNING"), LogLevel::Warning);
+        assert_eq!(LogLevel::from("ERROR"), LogLevel::Error);
+        assert_eq!(LogLevel::from("FATAL"), LogLevel::Fatal);
+    }
+
+    #[test]
+    fn log_level_aliases() {
+        // Реальные логи пишут сокращённо.
+        assert_eq!(LogLevel::from("WARN"), LogLevel::Warning);
+        assert_eq!(LogLevel::from("ERR"), LogLevel::Error);
+    }
+
+    #[test]
+    fn log_level_case_insensitive() {
+        assert_eq!(LogLevel::from("info"), LogLevel::Info);
+        assert_eq!(LogLevel::from("Error"), LogLevel::Error);
+        assert_eq!(LogLevel::from("wArN"), LogLevel::Warning);
+    }
+
+    #[test]
+    fn log_level_trims_whitespace() {
+        assert_eq!(LogLevel::from("  info  "), LogLevel::Info);
+    }
+
+    #[test]
+    fn log_level_unrecognized_is_unknown() {
+        assert_eq!(LogLevel::from("xyz"), LogLevel::Unknown);
+        assert_eq!(LogLevel::from(""), LogLevel::Unknown);
     }
 
     #[test]
     fn trims_whitespace() {
         let entry = LogEntry::parse(" ts : INFO : hello ").unwrap();
         assert_eq!(entry.timestamp, "ts");
-        assert_eq!(entry.level, "INFO");
+        assert_eq!(entry.level, LogLevel::Info);
         assert_eq!(entry.message, "hello");
     }
 
