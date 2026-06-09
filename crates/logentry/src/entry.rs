@@ -29,26 +29,37 @@ pub struct LogEntry {
     message: String,
 }
 
-impl LogEntry {
-    /// Разбирает строку вида `timestamp:LEVEL:message`.
-    /// Нужно ровно 3 части — иначе `None`.
-    /// Лишние `:` остаются внутри message (splitn ограничивает срез тремя частями).
-    ///
-    /// ВАЖНО
-    /// Парсер ломается на реальных timestamp с :. splitn(3, ':') по разделителю :, но ISO-время само содержит ::
-    /// 2026-06-07T12:00:00:INFO:msg  →  ["2026-06-07T12", "00", "00:INFO:msg"]
-    /// Для хардкод-MVP ок, но это ядро лог-анализатора. Будущее: другой разделитель (\t/|), либо распознавать level/timestamp по форме, либо regex.
-    pub fn parse(line: &str) -> Option<Self> {
-        let mut parts = line.splitn(3, ':');
-        let timestamp = parts.next()?.trim().to_string();
-        let level = parts.next()?.trim().to_string();
-        let message = parts.next()?.trim().to_string();
+impl LogLevel {
+    fn severity(self) -> u8 {
+        match self {
+            LogLevel::Unknown => 0,
+            LogLevel::Debug => 1,
+            LogLevel::Info => 2,
+            LogLevel::Warning => 3,
+            LogLevel::Error => 4,
+            LogLevel::Fatal => 5,
+        }
+    }
+}
 
-        Some(Self {
+impl PartialOrd for LogLevel {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for LogLevel {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.severity().cmp(&other.severity())
+    }
+}
+
+impl LogEntry {
+    pub fn new(timestamp: String, level: LogLevel, message: String) -> Self {
+        Self {
             timestamp,
-            level: LogLevel::from(level.as_str()),
+            level,
             message,
-        })
+        }
     }
 
     pub fn timestamp(&self) -> &str {
@@ -67,23 +78,6 @@ impl LogEntry {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parse_valid_line() {
-        let entry = LogEntry::parse("2026-06-07:INFO:started").unwrap();
-        assert_eq!(entry.timestamp, "2026-06-07");
-        assert_eq!(entry.level, LogLevel::Info);
-        assert_eq!(entry.message, "started");
-    }
-
-    #[test]
-    fn message_keeps_inner_colons() {
-        // Двоеточия после второго остаются в message.
-        let entry = LogEntry::parse("ts:WARN:user:42 logged in").unwrap();
-        assert_eq!(entry.message, "user:42 logged in");
-        // WARN — алиас Warning, уровень должен распознаться (не Unknown).
-        assert_eq!(entry.level, LogLevel::Warning);
-    }
 
     #[test]
     fn log_level_canonical_names() {
@@ -120,16 +114,31 @@ mod tests {
     }
 
     #[test]
-    fn trims_whitespace() {
-        let entry = LogEntry::parse(" ts : INFO : hello ").unwrap();
-        assert_eq!(entry.timestamp, "ts");
-        assert_eq!(entry.level, LogLevel::Info);
-        assert_eq!(entry.message, "hello");
+    fn log_level_ordered_by_severity() {
+        // Порядок severity, не порядок объявления.
+        assert!(LogLevel::Debug < LogLevel::Info);
+        assert!(LogLevel::Info < LogLevel::Warning);
+        assert!(LogLevel::Warning < LogLevel::Error);
+        assert!(LogLevel::Error < LogLevel::Fatal);
     }
 
     #[test]
-    fn too_few_parts_is_none() {
-        assert_eq!(LogEntry::parse("ts:INFO"), None);
-        assert_eq!(LogEntry::parse("just-text"), None);
+    fn log_level_unknown_is_minimum() {
+        // Unknown — ниже всех известных уровней.
+        assert!(LogLevel::Unknown < LogLevel::Debug);
+        assert!(LogLevel::Unknown < LogLevel::Fatal);
+    }
+
+    #[test]
+    fn log_level_fatal_is_maximum() {
+        let mut levels = [
+            LogLevel::Error,
+            LogLevel::Debug,
+            LogLevel::Fatal,
+            LogLevel::Info,
+        ];
+        levels.sort();
+        assert_eq!(levels.last(), Some(&LogLevel::Fatal));
+        assert_eq!(levels.first(), Some(&LogLevel::Debug));
     }
 }
