@@ -21,6 +21,7 @@ impl Summary {
         self.by_level.iter().map(|(&lvl, &cnt)| (lvl, cnt))
     }
 }
+
 impl Summary {
     pub fn count(&mut self, entry: &LogEntry) {
         let cnt = self.by_level.entry(entry.level()).or_insert(0);
