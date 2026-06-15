@@ -8,6 +8,21 @@ pub enum LogLevel {
     Unknown,
 }
 
+impl std::fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            LogLevel::Debug => "DEBUG",
+            LogLevel::Info => "INFO",
+            LogLevel::Warning => "WARNING",
+            LogLevel::Error => "ERROR",
+            LogLevel::Fatal => "FATAL",
+            LogLevel::Unknown => "UNKNOWN",
+        };
+
+        f.write_str(s)
+    }
+}
+
 impl From<&str> for LogLevel {
     fn from(val: &str) -> Self {
         match val.trim().to_uppercase().as_str() {

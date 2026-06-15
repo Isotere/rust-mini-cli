@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
 regex = "1.12"
 
 [dev-dependencies]
