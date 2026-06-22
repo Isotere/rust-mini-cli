@@ -1,6 +1,11 @@
 use std::io::{BufRead, Write};
 
-use crate::{aggregator::Summary, entry::LogLevel, filter, parser};
+use crate::{
+    aggregator::Summary,
+    entry::LogLevel,
+    filter::{self, Predicate},
+    parser,
+};
 
 pub struct Options {
     pub min_level: Option<LogLevel>,
@@ -18,6 +23,15 @@ pub fn run<R: BufRead, W: Write>(
 ) -> std::io::Result<Summary> {
     let mut summary = Summary::default();
 
+    let mut predicates: Vec<Box<dyn Predicate>> = Vec::new();
+    if let Some(min) = opts.min_level {
+        predicates.push(Box::new(filter::MinLevel(min)));
+    }
+
+    if let Some(needle) = &opts.contains {
+        predicates.push(Box::new(filter::Contains(needle.clone())));
+    }
+
     for line in reader.lines() {
         let line = line?; // io ошибка пробрасывается через ?
         let entry = match parser::parse(&line) {
@@ -25,15 +39,7 @@ pub fn run<R: BufRead, W: Write>(
             Err(_) => continue, // пропускаем невалидные
         };
 
-        if let Some(min) = opts.min_level
-            && !filter::min_level(&entry, min)
-        {
-            continue;
-        }
-
-        if let Some(needle) = &opts.contains
-            && !filter::message_contains(&entry, needle)
-        {
+        if !predicates.iter().all(|p| p.keep(&entry)) {
             continue;
         }
 
@@ -77,6 +83,22 @@ bad line without level
         assert_eq!(summary.total_by_level(LogLevel::Error), 1);
         assert_eq!(summary.total_by_level(LogLevel::Warning), 1);
         assert_eq!(summary.total_by_level(LogLevel::Info), 0);
+    }
+
+    #[test]
+    fn run_composes_min_level_and_contains() {
+        // Два предиката вместе (.all()): держим строку, только если ОБА проходят.
+        let input = "ts:ERROR:db timeout\nts:ERROR:ok\nts:INFO:db timeout\n";
+        let opts = Options {
+            min_level: Some(LogLevel::Error),
+            contains: Some("timeout".to_string()),
+            show: false,
+        };
+        let summary = run(input.as_bytes(), &mut Vec::new(), &opts).unwrap();
+
+        // только ERROR + "timeout"; ERROR без timeout и INFO+timeout отсеяны.
+        assert_eq!(summary.total(), 1);
+        assert_eq!(summary.total_by_level(LogLevel::Error), 1);
     }
 
     #[test]
