@@ -7,6 +7,7 @@ use crate::{
     parser,
 };
 
+#[derive(Default)]
 pub struct Options {
     pub min_level: Option<LogLevel>,
     pub contains: Option<String>,
